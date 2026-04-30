@@ -12,7 +12,7 @@ export async function fetchForecast({ file, model, forecastDays, p, d, q, maWind
   formData.append("hidden_size", hiddenSize);
   formData.append("epochs", epochs);
 
-  const response = await fetch("http://localhost:8000/api/predict", {
+  const response = await fetch("/api/predict", {
     method: "POST",
     body: formData,
   });
