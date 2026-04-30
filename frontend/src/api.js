@@ -17,9 +17,12 @@ export async function fetchForecast({ file, model, forecastDays, p, d, q, maWind
     body: formData,
   });
 
-  if (!response.ok) {
-    throw new Error("Backend returned an error");
+  const data = await response.json();
+
+  // If the backend returned an error message, throw it so the UI can display it
+  if (!response.ok || data.error) {
+    throw new Error(data.error || "Backend returned an error");
   }
 
-  return response.json();
+  return data;
 }

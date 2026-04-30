@@ -49,7 +49,7 @@ function ForecastChart({ data }) {
     <Plot
       data={traces}
       layout={{
-        title: { text: "Consumption Forecast", font: { color: "#acdfb1" } },
+        title: { text: "AgilosIT Forecast", font: { color: "#acdfb1" } },
         xaxis: {
           title: { text: "Date", font: { color: "#acdfb1" } },
           tickfont: { color: "#acdfb1" },

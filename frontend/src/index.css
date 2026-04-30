@@ -175,6 +175,44 @@ button:disabled {
   margin-bottom: 1rem;
 }
 
+.data-preview {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: #263f33;
+  border: 1px solid #3a5c48;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.data-preview h3 {
+  margin: 0 0 0.75rem;
+  color: #c8a415;
+}
+
+.data-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.data-preview th,
+.data-preview td {
+  padding: 0.4rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #3a5c48;
+}
+
+.data-preview th {
+  color: #c8a415;
+  font-weight: 600;
+}
+
+.data-preview .ellipsis-row td {
+  text-align: center;
+  color: #6a9a72;
+  border-bottom: none;
+}
+
 .metrics {
   margin-top: 1rem;
   padding: 1rem;

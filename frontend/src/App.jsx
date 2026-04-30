@@ -4,9 +4,11 @@ import FileUpload from "./components/FileUpload";
 import ModelSelector from "./components/ModelSelector";
 import ParamPanel from "./components/ParamPanel";
 import ForecastChart from "./components/ForecastChart";
+import DataPreview from "./components/DataPreview";
 
 function App() {
   const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [model, setModel] = useState("arima");
   const [params, setParams] = useState({
     forecastDays: 30,
@@ -22,6 +24,26 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Parse the CSV on the client side to show a quick preview table
+  function handleFileSelect(selectedFile) {
+    setFile(selectedFile);
+    setResult(null);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      const lines = text.trim().split("\n");
+      // Skip the header row and parse each line
+      const rows = lines.slice(1).map((line) => {
+        const [date, value] = line.split(",");
+        return { date: date.trim(), value: value.trim() };
+      });
+      setPreview(rows);
+    };
+    reader.readAsText(selectedFile);
+  }
+
   // Send the data to the backend and get a forecast
   async function handlePredict() {
     if (!file) {
@@ -34,9 +56,13 @@ function App() {
 
     try {
       const data = await fetchForecast({ file, model, ...params });
-      setResult(data);
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setResult(data);
+      }
     } catch (err) {
-      setError("Prediction failed. Check your CSV format and try again.");
+      setError(err.message || "Prediction failed. Check your CSV format and try again.");
     } finally {
       setLoading(false);
     }
@@ -44,11 +70,11 @@ function App() {
 
   return (
     <div className="app">
-      <h1>Consumption Forecast</h1>
+      <h1>AgilosIT Forecast</h1>
 
       <div className="controls">
         <div className="controls-row">
-          <FileUpload onFileSelect={setFile} />
+          <FileUpload onFileSelect={handleFileSelect} />
           <ModelSelector model={model} onModelChange={setModel} />
         </div>
         <div className="controls-row">
@@ -73,6 +99,8 @@ function App() {
           {result.metrics.aic !== undefined && <p>AIC: {result.metrics.aic}</p>}
         </div>
       )}
+
+      <DataPreview rows={preview} />
     </div>
   );
 }
