@@ -26,16 +26,12 @@ import {
   CCloseButton,
   CSidebar,
   CSidebarBrand,
-  CSidebarFooter,
   CSidebarHeader,
-  CSidebarToggler,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
+import { cilChartLine } from '@coreui/icons'
 
 import { AppSidebarNav } from './AppSidebarNav'
-
-import { logo } from 'src/assets/brand/logo'
-import { sygnet } from 'src/assets/brand/sygnet'
 
 // sidebar nav config
 import navigation from '../_nav'
@@ -54,7 +50,6 @@ import navigation from '../_nav'
  */
 const AppSidebar = () => {
   const dispatch = useDispatch()
-  const unfoldable = useSelector((state) => state.sidebarUnfoldable)
   const sidebarShow = useSelector((state) => state.sidebarShow)
 
   return (
@@ -62,7 +57,6 @@ const AppSidebar = () => {
       className="border-end"
       colorScheme="dark"
       position="fixed"
-      unfoldable={unfoldable}
       visible={sidebarShow}
       onVisibleChange={(visible) => {
         dispatch({ type: 'set', sidebarShow: visible })
@@ -70,8 +64,9 @@ const AppSidebar = () => {
     >
       <CSidebarHeader className="border-bottom">
         <CSidebarBrand to="/">
-          <CIcon customClassName="sidebar-brand-full" icon={logo} height={32} />
-          <CIcon customClassName="sidebar-brand-narrow" icon={sygnet} height={32} />
+          <CIcon icon={cilChartLine} height={24} className="me-2 sidebar-brand-narrow" />
+          <span className="sidebar-brand-full fs-5 fw-semibold">AgilosIT Forecast</span>
+          <CIcon icon={cilChartLine} height={24} customClassName="sidebar-brand-narrow" />
         </CSidebarBrand>
         <CCloseButton
           className="d-lg-none"
@@ -80,11 +75,6 @@ const AppSidebar = () => {
         />
       </CSidebarHeader>
       <AppSidebarNav items={navigation} />
-      <CSidebarFooter className="border-top d-none d-lg-flex">
-        <CSidebarToggler
-          onClick={() => dispatch({ type: 'set', sidebarUnfoldable: !unfoldable })}
-        />
-      </CSidebarFooter>
     </CSidebar>
   )
 }

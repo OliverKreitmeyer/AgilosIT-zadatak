@@ -6,6 +6,7 @@ const initialState = {
   datasets: [], // { id, name, uploadedAt, data: [{date, value}] }
   activeDatasetId: null,
   forecasts: [], // { id, datasetId, modelName, params, predictions: [{date, value}], metrics: {rmse, mae, mape} }
+  user: null, // { name, email, avatar } or null if not logged in
 }
 
 function reducer(state, action) {
@@ -43,6 +44,10 @@ function reducer(state, action) {
         ...state,
         forecasts: state.forecasts.filter((f) => f.datasetId !== action.payload),
       }
+    case 'SET_USER':
+      return { ...state, user: action.payload }
+    case 'LOGOUT':
+      return { ...state, user: null }
     default:
       return state
   }
