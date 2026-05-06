@@ -2,8 +2,5 @@ fastapi
 uvicorn
 pandas
 numpy
-statsmodels
 prophet
-scikit-learn
 python-multipart
-torch --index-url https://download.pytorch.org/whl/cpu

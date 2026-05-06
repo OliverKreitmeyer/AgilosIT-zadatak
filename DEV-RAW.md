@@ -23,7 +23,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 
 # Start the backend server
-uvicorn main:app --reload
+uvicorn main:app --port 8001
 ```
 
 If using fish shell, activate with:
@@ -31,7 +31,7 @@ If using fish shell, activate with:
 source venv/bin/activate.fish
 ```
 
-Backend runs on http://localhost:8000
+Backend runs on http://localhost:8001
 
 ### Frontend
 
@@ -42,10 +42,10 @@ cd frontend
 npm install
 
 # Start the dev server
-npm run dev
+npm run start
 ```
 
-Frontend runs on http://localhost:5173
+Frontend runs on http://localhost:3000
 
 ---
 
@@ -64,10 +64,10 @@ venv\Scripts\activate
 pip install -r requirements.txt
 
 # Start the backend server
-uvicorn main:app --reload
+uvicorn main:app --port 8001
 ```
 
-Backend runs on http://localhost:8000
+Backend runs on http://localhost:8001
 
 ### Frontend
 
@@ -78,26 +78,34 @@ cd frontend
 npm install
 
 # Start the dev server
-npm run dev
+npm run start
 ```
 
-Frontend runs on http://localhost:5173
+Frontend runs on http://localhost:3000
 
 ---
 
 ## Notes
 
-- Both the backend and frontend need to be running at the same time for the app to work.
-- The frontend sends requests to http://localhost:8000, so the backend must be running first.
-- Sample test data is in `data/sample_data.csv`.
-- PyTorch is installed as CPU-only to keep the install size small. If `pip install -r requirements.txt` fails on the torch line, install it separately:
+- The backend is only needed for the Prophet model. All other models (Moving Average, Exponential Smoothing, ARIMA, Auto ARIMA) run entirely in the browser.
+- If you don't need Prophet, you can skip the backend setup entirely.
+- The frontend communicates with the backend at `http://localhost:8001`. To change this, set the `VITE_API_URL` environment variable before starting the frontend.
+- Sample test data is in `data/` (sample_data.csv, downtrend.csv, strong_seasonal.csv, etc.).
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:8001` | Backend API URL (frontend) |
+
+---
+
+## Docker
 
 ```bash
-pip install torch --index-url https://download.pytorch.org/whl/cpu
+docker compose up --build
 ```
 
-Then install the rest:
-
-```bash
-pip install fastapi uvicorn pandas numpy statsmodels prophet scikit-learn python-multipart
-```
+This starts both frontend and backend. The app is available at http://localhost:3000.
