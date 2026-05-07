@@ -1,12 +1,31 @@
-import React, { createContext, useContext, useReducer } from 'react'
+import React, { createContext, useContext, useReducer, useEffect } from 'react'
 
 const DataContext = createContext()
 
+const savedUser = (() => {
+  try {
+    const stored = localStorage.getItem('user')
+    return stored ? JSON.parse(stored) : null
+  } catch {
+    return null
+  }
+})()
+
+const savedDatasets = (() => {
+  if (!savedUser) return []
+  try {
+    const stored = localStorage.getItem('datasets')
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+})()
+
 const initialState = {
-  datasets: [], // { id, name, uploadedAt, data: [{date, value}] }
-  activeDatasetId: null,
-  forecasts: [], // { id, datasetId, modelName, params, predictions: [{date, value}], metrics: {rmse, mae, mape} }
-  user: null, // { name, email, avatar } or null if not logged in
+  datasets: savedDatasets,
+  activeDatasetId: (savedUser && localStorage.getItem('activeDatasetId')) || null,
+  forecasts: [],
+  user: savedUser,
 }
 
 function reducer(state, action) {
@@ -45,16 +64,36 @@ function reducer(state, action) {
         forecasts: state.forecasts.filter((f) => f.datasetId !== action.payload),
       }
     case 'SET_USER':
+      localStorage.setItem('user', JSON.stringify(action.payload))
       return { ...state, user: action.payload }
     case 'LOGOUT':
-      return { ...state, user: null }
+      localStorage.removeItem('user')
+      localStorage.removeItem('datasets')
+      localStorage.removeItem('activeDatasetId')
+      return { ...state, user: null, datasets: [], activeDatasetId: null, forecasts: [] }
     default:
       return state
   }
 }
 
+function persist(state) {
+  if (state.user) {
+    localStorage.setItem('datasets', JSON.stringify(state.datasets))
+    if (state.activeDatasetId) {
+      localStorage.setItem('activeDatasetId', state.activeDatasetId)
+    } else {
+      localStorage.removeItem('activeDatasetId')
+    }
+  }
+}
+
 export function DataProvider({ children }) {
   const [state, dispatch] = useReducer(reducer, initialState)
+
+  useEffect(() => {
+    persist(state)
+  }, [state.datasets, state.activeDatasetId, state.user])
+
   return <DataContext.Provider value={{ state, dispatch }}>{children}</DataContext.Provider>
 }
 
