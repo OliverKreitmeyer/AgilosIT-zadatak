@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import {
   CCard,
   CCardBody,
@@ -24,11 +24,45 @@ import { CChartLine, CChartBar } from '@coreui/react-chartjs'
 import CIcon from '@coreui/icons-react'
 import { cilBalanceScale, cilChartLine } from '@coreui/icons'
 import { useData } from '../../context/DataContext'
+import { useNotification } from '../../context/NotificationContext'
 import { getModelNames, runForecast } from '../../forecast/engine'
+
+// Run each model sequentially with a yield between them so the UI stays responsive
+async function runModelsSequentially(models, data, horizon) {
+  const results = []
+  const lastDate = new Date(data[data.length - 1].date)
+
+  for (const modelName of models) {
+    // Yield to browser before each model
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    try {
+      const result = await runForecast(modelName, data, horizon)
+
+      let predictions
+      if (result.predictions.length > 0 && result.predictions[0].date) {
+        predictions = result.predictions
+      } else {
+        predictions = result.predictions.map((value, i) => {
+          const date = new Date(lastDate)
+          date.setDate(date.getDate() + i + 1)
+          return { date: date.toISOString().split('T')[0], value }
+        })
+      }
+
+      results.push({ modelName, predictions, metrics: result.metrics, error: null })
+    } catch (e) {
+      results.push({ modelName, predictions: [], metrics: null, error: e.message })
+    }
+  }
+
+  return results
+}
 
 const Compare = () => {
   const { state, dispatch } = useData()
-  const { datasets, activeDatasetId } = state
+  const { addToast } = useNotification()
+  const { datasets, activeDatasetId, runningForecast } = state
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId)
   const modelNames = getModelNames()
@@ -36,14 +70,21 @@ const Compare = () => {
   const [selectedModels, setSelectedModels] = useState(['Moving Average', 'ARIMA', 'Auto ARIMA'])
   const [horizon, setHorizon] = useState(30)
   const [results, setResults] = useState([])
-  const [running, setRunning] = useState(false)
   const [error, setError] = useState('')
+
+  const running = runningForecast?.type === 'compare'
 
   const toggleModel = (name) => {
     setSelectedModels((prev) =>
       prev.includes(name) ? prev.filter((m) => m !== name) : [...prev, name],
     )
   }
+
+  const requestNotificationPermission = useCallback(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
 
   const handleCompare = async () => {
     if (!activeDataset) {
@@ -54,33 +95,25 @@ const Compare = () => {
       setError('Select at least 2 models to compare')
       return
     }
+    if (running) return
+
     setError('')
-    setRunning(true)
+    requestNotificationPermission()
+
+    dispatch({
+      type: 'SET_RUNNING_FORECAST',
+      payload: {
+        type: 'compare',
+        modelName: selectedModels.join(', '),
+        datasetId: activeDatasetId,
+      },
+    })
 
     try {
-      const lastDate = new Date(activeDataset.data[activeDataset.data.length - 1].date)
-
-      const newResults = await Promise.all(
-        selectedModels.map(async (modelName) => {
-          try {
-            const result = await runForecast(modelName, activeDataset.data, parseInt(horizon))
-
-            let predictions
-            if (result.predictions.length > 0 && result.predictions[0].date) {
-              predictions = result.predictions
-            } else {
-              predictions = result.predictions.map((value, i) => {
-                const date = new Date(lastDate)
-                date.setDate(date.getDate() + i + 1)
-                return { date: date.toISOString().split('T')[0], value }
-              })
-            }
-
-            return { modelName, predictions, metrics: result.metrics, error: null }
-          } catch (e) {
-            return { modelName, predictions: [], metrics: null, error: e.message }
-          }
-        }),
+      const newResults = await runModelsSequentially(
+        selectedModels,
+        activeDataset.data,
+        parseInt(horizon),
       )
 
       setResults(newResults)
@@ -99,10 +132,29 @@ const Compare = () => {
             },
           })
         })
+
+      const successCount = newResults.filter((r) => !r.error).length
+      const best = newResults
+        .filter((r) => r.metrics)
+        .sort((a, b) => a.metrics.rmse - b.metrics.rmse)[0]
+      const bestMsg = best
+        ? `Best: ${best.modelName} (RMSE ${best.metrics.rmse.toFixed(2)})`
+        : ''
+
+      addToast({
+        title: 'Comparison Complete',
+        message: `${successCount}/${selectedModels.length} models finished. ${bestMsg}`,
+        color: 'success',
+      })
     } catch (e) {
       setError(`Comparison failed: ${e.message}`)
+      addToast({
+        title: 'Comparison Failed',
+        message: e.message,
+        color: 'danger',
+      })
     } finally {
-      setRunning(false)
+      dispatch({ type: 'CLEAR_RUNNING_FORECAST' })
     }
   }
 
@@ -235,7 +287,7 @@ const Compare = () => {
                 ) : (
                   <CIcon icon={cilBalanceScale} className="me-2" />
                 )}
-                Compare All
+                {running ? 'Comparing...' : 'Compare All'}
               </CButton>
             </CCardBody>
           </CCard>

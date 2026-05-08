@@ -22,8 +22,11 @@ import React, { useEffect, useRef } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useSelector, useDispatch } from 'react-redux'
 import {
+  CBadge,
   CContainer,
   CDropdown,
+  CDropdownDivider,
+  CDropdownHeader,
   CDropdownItem,
   CDropdownMenu,
   CDropdownToggle,
@@ -32,21 +35,25 @@ import {
   CHeaderToggler,
   CNavLink,
   CNavItem,
+  CSpinner,
   useColorModes,
 } from '@coreui/react'
 import CIcon from '@coreui/icons-react'
 import {
   cilBell,
   cilContrast,
-  cilEnvelopeOpen,
-  cilList,
   cilMenu,
   cilMoon,
   cilSun,
+  cilTrash,
+  cilCheckCircle,
+  cilXCircle,
 } from '@coreui/icons'
 
 import { AppBreadcrumb } from './index'
 import { AppHeaderDropdown } from './header/index'
+import { useData } from '../context/DataContext'
+import { useNotification } from '../context/NotificationContext'
 
 /**
  * AppHeader functional component
@@ -65,6 +72,9 @@ const AppHeader = () => {
 
   const dispatch = useDispatch()
   const sidebarShow = useSelector((state) => state.sidebarShow)
+  const { state: dataState } = useData()
+  const { runningForecast } = dataState
+  const { history, unreadCount, markAllRead, clearHistory } = useNotification()
 
   useEffect(() => {
     const handleScroll = () => {
@@ -93,11 +103,68 @@ const AppHeader = () => {
           </CNavItem>
         </CHeaderNav>
         <CHeaderNav className="ms-auto">
-          <CNavItem>
-            <CNavLink href="#">
+          {runningForecast && (
+            <CNavItem className="d-flex align-items-center me-2">
+              <CSpinner size="sm" className="me-2 text-primary" />
+              <span className="small text-body-secondary d-none d-md-inline">
+                Running {runningForecast.modelName}...
+              </span>
+            </CNavItem>
+          )}
+          <CDropdown variant="nav-item" placement="bottom-end" onShow={markAllRead}>
+            <CDropdownToggle caret={false} className="position-relative">
               <CIcon icon={cilBell} size="lg" />
-            </CNavLink>
-          </CNavItem>
+              {unreadCount > 0 && (
+                <CBadge
+                  color="danger"
+                  shape="rounded-pill"
+                  className="position-absolute top-0 start-100 translate-middle"
+                  style={{ fontSize: '0.65rem' }}
+                >
+                  {unreadCount}
+                </CBadge>
+              )}
+            </CDropdownToggle>
+            <CDropdownMenu style={{ minWidth: '320px', maxHeight: '400px', overflowY: 'auto' }}>
+              <CDropdownHeader className="bg-body-secondary fw-semibold d-flex justify-content-between align-items-center">
+                <span>Notifications</span>
+                {history.length > 0 && (
+                  <button
+                    className="btn btn-sm btn-link text-body-secondary p-0"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      clearHistory()
+                    }}
+                  >
+                    <CIcon icon={cilTrash} size="sm" />
+                  </button>
+                )}
+              </CDropdownHeader>
+              {history.length === 0 ? (
+                <CDropdownItem disabled className="text-center text-body-secondary py-3">
+                  No notifications yet
+                </CDropdownItem>
+              ) : (
+                history.map((n) => (
+                  <CDropdownItem key={n.id} as="div" className="py-2 border-bottom">
+                    <div className="d-flex align-items-start">
+                      <CIcon
+                        icon={n.color === 'danger' ? cilXCircle : cilCheckCircle}
+                        className={`me-2 mt-1 flex-shrink-0 text-${n.color}`}
+                      />
+                      <div className="flex-grow-1 min-w-0">
+                        <div className="fw-semibold small">{n.title}</div>
+                        <div className="text-body-secondary small text-truncate">{n.message}</div>
+                        <div className="text-body-secondary small" style={{ fontSize: '0.7rem' }}>
+                          {new Date(n.timestamp).toLocaleTimeString()}
+                        </div>
+                      </div>
+                    </div>
+                  </CDropdownItem>
+                ))
+              )}
+            </CDropdownMenu>
+          </CDropdown>
         </CHeaderNav>
         <CHeaderNav>
           <li className="nav-item py-1">

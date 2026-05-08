@@ -36,6 +36,7 @@ const initialState = {
   activeDatasetId: (savedUser && localStorage.getItem('activeDatasetId')) || null,
   forecasts: savedForecasts,
   user: savedUser,
+  runningForecast: null, // { modelName, datasetId, type: 'forecast'|'compare' }
 }
 
 function reducer(state, action) {
@@ -76,6 +77,10 @@ function reducer(state, action) {
     case 'SET_USER':
       localStorage.setItem('user', JSON.stringify(action.payload))
       return { ...state, user: action.payload }
+    case 'SET_RUNNING_FORECAST':
+      return { ...state, runningForecast: action.payload }
+    case 'CLEAR_RUNNING_FORECAST':
+      return { ...state, runningForecast: null }
     case 'CLEAR_ALL_FORECASTS':
       return { ...state, forecasts: [] }
     case 'LOGOUT':

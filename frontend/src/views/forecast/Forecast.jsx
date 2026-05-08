@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import {
   CCard,
   CCardBody,
@@ -17,6 +17,7 @@ import { CChartLine } from '@coreui/react-chartjs'
 import CIcon from '@coreui/icons-react'
 import { cilMediaPlay, cilChartLine } from '@coreui/icons'
 import { useData } from '../../context/DataContext'
+import { useNotification } from '../../context/NotificationContext'
 import {
   getModelNames,
   getDefaultParams,
@@ -25,9 +26,23 @@ import {
   OPTIMIZERS,
 } from '../../forecast/engine'
 
+// Yield to the browser between heavy sync work
+function runAsync(fn) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      try {
+        resolve(fn())
+      } catch (e) {
+        reject(e)
+      }
+    }, 0)
+  })
+}
+
 const Forecast = () => {
   const { state, dispatch } = useData()
-  const { datasets, activeDatasetId, forecasts } = state
+  const { addToast } = useNotification()
+  const { datasets, activeDatasetId, forecasts, runningForecast } = state
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId)
   const datasetForecasts = forecasts.filter((f) => f.datasetId === activeDatasetId)
@@ -36,7 +51,8 @@ const Forecast = () => {
   const [horizon, setHorizon] = useState(30)
   const [params, setParams] = useState({})
   const [error, setError] = useState('')
-  const [running, setRunning] = useState(false)
+
+  const running = runningForecast?.type === 'forecast'
 
   const modelNames = getModelNames()
 
@@ -45,19 +61,33 @@ const Forecast = () => {
     setParams(getDefaultParams(name))
   }
 
+  // Request notification permission on first interaction
+  const requestNotificationPermission = useCallback(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }, [])
+
   const handleRun = async () => {
     if (!activeDataset) {
       setError('No dataset selected. Upload data first.')
       return
     }
+    if (running) return
+
     setError('')
-    setRunning(true)
+    requestNotificationPermission()
+
+    dispatch({
+      type: 'SET_RUNNING_FORECAST',
+      payload: { type: 'forecast', modelName, datasetId: activeDatasetId },
+    })
 
     try {
-      const result = await runForecast(modelName, activeDataset.data, parseInt(horizon), params)
+      const result = await runAsync(() =>
+        runForecast(modelName, activeDataset.data, parseInt(horizon), params),
+      )
 
-      // For client-side models, predictions are raw arrays — wrap with dates
-      // For Prophet, predictions already have dates from the backend
       let predictions
       if (result.predictions.length > 0 && result.predictions[0].date) {
         predictions = result.predictions
@@ -81,10 +111,24 @@ const Forecast = () => {
           metrics: result.metrics,
         },
       })
+
+      const metricsMsg = result.metrics
+        ? `RMSE: ${result.metrics.rmse.toFixed(2)}`
+        : 'No test metrics'
+      addToast({
+        title: 'Forecast Complete',
+        message: `${modelName} finished. ${metricsMsg}`,
+        color: 'success',
+      })
     } catch (e) {
       setError(`Forecast failed: ${e.message}`)
+      addToast({
+        title: 'Forecast Failed',
+        message: `${modelName}: ${e.message}`,
+        color: 'danger',
+      })
     } finally {
-      setRunning(false)
+      dispatch({ type: 'CLEAR_RUNNING_FORECAST' })
     }
   }
 
@@ -110,14 +154,12 @@ const Forecast = () => {
     const allLabels = [...histLabels]
 
     datasetForecasts.forEach((fc, idx) => {
-      // Pad with nulls for historical period, then add predictions
       const predLabels = fc.predictions.map((p) => p.date)
       predLabels.forEach((l) => {
         if (!allLabels.includes(l)) allLabels.push(l)
       })
 
       const data = new Array(histLabels.length - 1).fill(null)
-      // Connect to last historical point
       data.push(histValues[histValues.length - 1])
       fc.predictions.forEach((p) => data.push(p.value))
 
@@ -266,7 +308,7 @@ const Forecast = () => {
                 ) : (
                   <CIcon icon={cilMediaPlay} className="me-2" />
                 )}
-                Run Forecast
+                {running ? `Running ${runningForecast?.modelName}...` : 'Run Forecast'}
               </CButton>
             </CCardBody>
           </CCard>

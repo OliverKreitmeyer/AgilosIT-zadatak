@@ -7,6 +7,7 @@ import 'core-js'
 import App from './App'
 import store from './store'
 import { DataProvider } from './context/DataContext'
+import { NotificationProvider } from './context/NotificationContext'
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
@@ -14,7 +15,9 @@ createRoot(document.getElementById('root')).render(
   <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
     <Provider store={store}>
       <DataProvider>
-        <App />
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
       </DataProvider>
     </Provider>
   </GoogleOAuthProvider>,
