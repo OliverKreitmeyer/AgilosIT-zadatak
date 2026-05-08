@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import Papa from 'papaparse'
+import * as XLSX from 'xlsx'
 import {
   CCard,
   CCardBody,
@@ -33,6 +34,108 @@ const Upload = () => {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  const SUPPORTED_EXTENSIONS = ['.csv', '.xlsx', '.xls']
+
+  const autoDetectColumns = (fields) => {
+    const lower = fields.map((f) => f.toLowerCase())
+    const dateIdx = lower.findIndex(
+      (f) => f.includes('date') || f.includes('datum') || f.includes('time'),
+    )
+    const valueIdx = lower.findIndex(
+      (f) =>
+        f.includes('value') ||
+        f.includes('potrošnja') ||
+        f.includes('potrosnja') ||
+        f.includes('consumption') ||
+        f.includes('amount') ||
+        f.includes('spend'),
+    )
+    if (dateIdx >= 0) setDateCol(fields[dateIdx])
+    if (valueIdx >= 0) setValueCol(fields[valueIdx])
+  }
+
+  const loadParsedData = (fields, rows) => {
+    if (!fields || fields.length === 0) {
+      setError('Could not find any columns. Make sure your file has a header row.')
+      return
+    }
+    if (fields.length < 2) {
+      setError('File must have at least 2 columns (date and value). Found only 1 column.')
+      return
+    }
+    if (rows.length === 0) {
+      setError('File has headers but no data rows.')
+      return
+    }
+    setHeaders(fields)
+    setPreview(rows)
+    autoDetectColumns(fields)
+  }
+
+  const parseCSV = (file) => {
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        if (results.errors.length > 0) {
+          setError(`CSV parse error: ${results.errors[0].message}`)
+          return
+        }
+        loadParsedData(results.meta.fields, results.data)
+      },
+    })
+  }
+
+  const parseExcel = (file) => {
+    const reader = new FileReader()
+    reader.onerror = () => {
+      setError('Failed to read the Excel file. It may be corrupted or password-protected.')
+    }
+    reader.onload = (evt) => {
+      try {
+        const workbook = XLSX.read(evt.target.result, { type: 'array', cellDates: true })
+
+        if (workbook.SheetNames.length === 0) {
+          setError('The Excel file has no sheets.')
+          return
+        }
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]]
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: '' })
+
+        if (jsonData.length === 0) {
+          setError(
+            'The first sheet is empty. Make sure your data starts in the first row with headers.',
+          )
+          return
+        }
+
+        const fields = Object.keys(jsonData[0])
+
+        // Convert Date objects to ISO strings for consistency
+        const rows = jsonData.map((row) => {
+          const cleaned = {}
+          for (const key of fields) {
+            const val = row[key]
+            if (val instanceof Date) {
+              cleaned[key] = val.toISOString().split('T')[0]
+            } else {
+              cleaned[key] = String(val)
+            }
+          }
+          return cleaned
+        })
+
+        loadParsedData(fields, rows)
+      } catch {
+        setError(
+          'Failed to parse the Excel file. Make sure it is a valid .xlsx or .xls file, not a renamed file with a different format.',
+        )
+      }
+    }
+    reader.readAsArrayBuffer(file)
+  }
+
   const handleFile = (e) => {
     const file = e.target.files[0]
     if (!file) return
@@ -40,39 +143,20 @@ const Upload = () => {
     setSuccess('')
     setFileName(file.name)
 
-    Papa.parse(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.errors.length > 0) {
-          setError(`Parse error: ${results.errors[0].message}`)
-          return
-        }
-        if (results.data.length === 0) {
-          setError('File is empty')
-          return
-        }
-        setHeaders(results.meta.fields)
-        setPreview(results.data)
+    const ext = file.name.toLowerCase().slice(file.name.lastIndexOf('.'))
 
-        // Auto-detect columns
-        const fields = results.meta.fields.map((f) => f.toLowerCase())
-        const dateIdx = fields.findIndex(
-          (f) => f.includes('date') || f.includes('datum') || f.includes('time'),
-        )
-        const valueIdx = fields.findIndex(
-          (f) =>
-            f.includes('value') ||
-            f.includes('potrošnja') ||
-            f.includes('potrosnja') ||
-            f.includes('consumption') ||
-            f.includes('amount') ||
-            f.includes('spend'),
-        )
-        if (dateIdx >= 0) setDateCol(results.meta.fields[dateIdx])
-        if (valueIdx >= 0) setValueCol(results.meta.fields[valueIdx])
-      },
-    })
+    if (!SUPPORTED_EXTENSIONS.includes(ext)) {
+      setError(
+        `Unsupported file type "${ext}". Please upload a CSV (.csv) or Excel (.xlsx, .xls) file.`,
+      )
+      return
+    }
+
+    if (ext === '.csv') {
+      parseCSV(file)
+    } else {
+      parseExcel(file)
+    }
   }
 
   const handleImport = () => {
@@ -89,8 +173,17 @@ const Upload = () => {
       .filter((row) => row.date && !isNaN(row.value))
       .sort((a, b) => new Date(a.date) - new Date(b.date))
 
+    if (data.length === 0) {
+      setError(
+        'No valid data found. Make sure the date column contains recognizable dates and the value column contains numbers.',
+      )
+      return
+    }
+
     if (data.length < 5) {
-      setError('Need at least 5 valid data points')
+      setError(
+        `Only ${data.length} valid data point${data.length !== 1 ? 's' : ''} found — need at least 5. Check that your value column contains numbers (not text).`,
+      )
       return
     }
 
@@ -109,7 +202,7 @@ const Upload = () => {
           <CCard className="mb-4">
             <CCardHeader>
               <strong>Upload Dataset</strong>
-              <small className="ms-2 text-body-secondary">CSV file with date and value columns</small>
+              <small className="ms-2 text-body-secondary">CSV or Excel file with date and value columns</small>
             </CCardHeader>
             <CCardBody>
               {error && <CAlert color="danger">{error}</CAlert>}
@@ -149,11 +242,11 @@ const Upload = () => {
                 <div className="text-body-secondary">
                   <strong>Click to upload</strong> or drag and drop
                 </div>
-                <div className="small text-body-secondary mt-1">CSV files only</div>
+                <div className="small text-body-secondary mt-1">CSV or Excel (.xlsx, .xls)</div>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.xlsx,.xls"
                   className="d-none"
                   onChange={handleFile}
                 />

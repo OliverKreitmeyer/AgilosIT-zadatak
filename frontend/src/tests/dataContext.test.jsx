@@ -300,4 +300,139 @@ describe('DataContext reducer', () => {
     expect(screen.getByTestId('datasets').textContent).toBe('0')
     expect(screen.getByTestId('forecasts').textContent).toBe('0')
   })
+
+  it('DELETE_DATASET resets activeDatasetId when deleting the active one', () => {
+    function ActiveDeleteTest() {
+      const { state, dispatch } = useData()
+      const dsId = state.datasets[0]?.id
+      return (
+        <div>
+          <span data-testid="active">{state.activeDatasetId || 'none'}</span>
+          <button
+            data-testid="add"
+            onClick={() =>
+              dispatch({
+                type: 'ADD_DATASET',
+                payload: { name: 'test.csv', data: [{ date: '2024-01-01', value: 1 }] },
+              })
+            }
+          >
+            Add
+          </button>
+          <button
+            data-testid="delete"
+            onClick={() => {
+              if (dsId) dispatch({ type: 'DELETE_DATASET', payload: dsId })
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      )
+    }
+
+    render(
+      <DataProvider>
+        <ActiveDeleteTest />
+      </DataProvider>,
+    )
+
+    act(() => screen.getByTestId('add').click())
+    expect(screen.getByTestId('active').textContent).not.toBe('none')
+
+    act(() => screen.getByTestId('delete').click())
+    expect(screen.getByTestId('active').textContent).toBe('none')
+  })
+
+  it('SET_ACTIVE_DATASET to non-existent id does not crash', () => {
+    function BadActiveTest() {
+      const { state, dispatch } = useData()
+      return (
+        <div>
+          <span data-testid="active">{state.activeDatasetId || 'none'}</span>
+          <button
+            data-testid="set"
+            onClick={() => dispatch({ type: 'SET_ACTIVE_DATASET', payload: 'nonexistent-id' })}
+          >
+            Set
+          </button>
+        </div>
+      )
+    }
+
+    render(
+      <DataProvider>
+        <BadActiveTest />
+      </DataProvider>,
+    )
+
+    act(() => screen.getByTestId('set').click())
+    expect(screen.getByTestId('active').textContent).toBe('nonexistent-id')
+  })
+
+  it('unknown action type does not modify state', () => {
+    function UnknownActionTest() {
+      const { state, dispatch } = useData()
+      return (
+        <div>
+          <span data-testid="datasets">{state.datasets.length}</span>
+          <span data-testid="forecasts">{state.forecasts.length}</span>
+          <button
+            data-testid="unknown"
+            onClick={() => dispatch({ type: 'TOTALLY_FAKE_ACTION', payload: 'whatever' })}
+          >
+            Unknown
+          </button>
+        </div>
+      )
+    }
+
+    render(
+      <DataProvider>
+        <UnknownActionTest />
+      </DataProvider>,
+    )
+
+    act(() => screen.getByTestId('unknown').click())
+    expect(screen.getByTestId('datasets').textContent).toBe('0')
+    expect(screen.getByTestId('forecasts').textContent).toBe('0')
+  })
+
+  it('rapid multiple ADD_FORECAST dispatches all persist', () => {
+    function RapidAddTest() {
+      const { state, dispatch } = useData()
+      return (
+        <div>
+          <span data-testid="forecasts">{state.forecasts.length}</span>
+          <button
+            data-testid="add-many"
+            onClick={() => {
+              for (let i = 0; i < 5; i++) {
+                dispatch({
+                  type: 'ADD_FORECAST',
+                  payload: {
+                    datasetId: 'ds1',
+                    modelName: `Model ${i}`,
+                    predictions: [],
+                    metrics: { rmse: i, mae: i, mape: i },
+                  },
+                })
+              }
+            }}
+          >
+            Add 5
+          </button>
+        </div>
+      )
+    }
+
+    render(
+      <DataProvider>
+        <RapidAddTest />
+      </DataProvider>,
+    )
+
+    act(() => screen.getByTestId('add-many').click())
+    expect(screen.getByTestId('forecasts').textContent).toBe('5')
+  })
 })

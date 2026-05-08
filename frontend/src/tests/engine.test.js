@@ -169,3 +169,103 @@ describe('getDefaultParams', () => {
     expect(params).toEqual({})
   })
 })
+
+// --- Edge cases ---
+
+describe('edge cases: calcMetrics', () => {
+  it('handles empty arrays without throwing', () => {
+    const m = calcMetrics([], [])
+    expect(m.rmse).toBeNaN()
+    expect(m.mae).toBeNaN()
+    expect(m.mape).toBeNaN()
+  })
+
+  it('handles all-zero predictions and actuals', () => {
+    const m = calcMetrics([0, 0, 0], [0, 0, 0])
+    expect(m.rmse).toBe(0)
+    expect(m.mae).toBe(0)
+    expect(m.mape).toBe(0)
+  })
+
+  it('handles negative values correctly', () => {
+    const m = calcMetrics([-10, -20], [-10, -20])
+    expect(m.rmse).toBe(0)
+    expect(m.mae).toBe(0)
+  })
+
+  it('handles very large values without Infinity', () => {
+    const big = 1e15
+    const m = calcMetrics([big, big], [big + 1, big - 1])
+    expect(isFinite(m.rmse)).toBe(true)
+    expect(isFinite(m.mae)).toBe(true)
+  })
+})
+
+describe('edge cases: Moving Average', () => {
+  it('horizon of 0 returns empty array', () => {
+    const preds = runMovingAverage([1, 2, 3, 4, 5], 0, { windowSize: 3 })
+    expect(preds).toHaveLength(0)
+  })
+
+  it('single value input still produces predictions', () => {
+    const preds = runMovingAverage([42], 3, { windowSize: 5 })
+    expect(preds).toHaveLength(3)
+    preds.forEach((p) => expect(p).toBe(42))
+  })
+
+  it('window larger than data uses all data', () => {
+    const preds = runMovingAverage([10, 20], 1, { windowSize: 100 })
+    expect(preds[0]).toBe(15)
+  })
+
+  it('very large horizon does not crash', () => {
+    const preds = runMovingAverage([1, 2, 3, 4, 5], 1000, { windowSize: 3 })
+    expect(preds).toHaveLength(1000)
+    preds.forEach((p) => expect(isFinite(p)).toBe(true))
+  })
+
+  it('negative values are handled', () => {
+    const preds = runMovingAverage([-10, -20, -30], 2, { windowSize: 3 })
+    expect(preds).toHaveLength(2)
+    expect(preds[0]).toBe(-20)
+  })
+})
+
+describe('edge cases: Exponential Smoothing', () => {
+  it('horizon of 0 returns empty array', () => {
+    const preds = runExponentialSmoothing([1, 2, 3], 0, { alpha: 0.3 })
+    expect(preds).toHaveLength(0)
+  })
+
+  it('single value input returns that value', () => {
+    const preds = runExponentialSmoothing([99], 3, { alpha: 0.5 })
+    expect(preds).toHaveLength(3)
+    preds.forEach((p) => expect(p).toBe(99))
+  })
+
+  it('all-zero input returns zeros', () => {
+    const preds = runExponentialSmoothing([0, 0, 0, 0], 3, { alpha: 0.3 })
+    preds.forEach((p) => expect(p).toBe(0))
+  })
+})
+
+describe('edge cases: Double Exponential Smoothing', () => {
+  it('horizon of 0 returns empty array', () => {
+    const preds = runDoubleExponentialSmoothing([1, 2, 3], 0, { alpha: 0.3, beta: 0.1 })
+    expect(preds).toHaveLength(0)
+  })
+
+  it('constant input produces near-constant forecast', () => {
+    const preds = runDoubleExponentialSmoothing([10, 10, 10, 10, 10], 3, {
+      alpha: 0.3,
+      beta: 0.1,
+    })
+    preds.forEach((p) => expect(p).toBeCloseTo(10, 0))
+  })
+
+  it('two-point input does not crash', () => {
+    const preds = runDoubleExponentialSmoothing([5, 10], 3, { alpha: 0.3, beta: 0.1 })
+    expect(preds).toHaveLength(3)
+    preds.forEach((p) => expect(isFinite(p)).toBe(true))
+  })
+})

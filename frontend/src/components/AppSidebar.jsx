@@ -55,7 +55,6 @@ const AppSidebar = () => {
   return (
     <CSidebar
       className="border-end"
-      colorScheme="dark"
       position="fixed"
       visible={sidebarShow}
       onVisibleChange={(visible) => {
