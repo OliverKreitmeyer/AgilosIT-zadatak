@@ -6,6 +6,7 @@ import {
   cilChartLine,
   cilBalanceScale,
   cilFile,
+  cilSettings,
 } from '@coreui/icons'
 import { CNavItem, CNavTitle } from '@coreui/react'
 
@@ -47,6 +48,16 @@ const _nav = [
     name: 'Compare Models',
     to: '/compare',
     icon: <CIcon icon={cilBalanceScale} customClassName="nav-icon" />,
+  },
+  {
+    component: CNavTitle,
+    name: 'System',
+  },
+  {
+    component: CNavItem,
+    name: 'Settings',
+    to: '/settings',
+    icon: <CIcon icon={cilSettings} customClassName="nav-icon" />,
   },
 ]
 

@@ -21,10 +21,20 @@ const savedDatasets = (() => {
   }
 })()
 
+const savedForecasts = (() => {
+  if (!savedUser) return []
+  try {
+    const stored = localStorage.getItem('forecasts')
+    return stored ? JSON.parse(stored) : []
+  } catch {
+    return []
+  }
+})()
+
 const initialState = {
   datasets: savedDatasets,
   activeDatasetId: (savedUser && localStorage.getItem('activeDatasetId')) || null,
-  forecasts: [],
+  forecasts: savedForecasts,
   user: savedUser,
 }
 
@@ -66,10 +76,13 @@ function reducer(state, action) {
     case 'SET_USER':
       localStorage.setItem('user', JSON.stringify(action.payload))
       return { ...state, user: action.payload }
+    case 'CLEAR_ALL_FORECASTS':
+      return { ...state, forecasts: [] }
     case 'LOGOUT':
       localStorage.removeItem('user')
       localStorage.removeItem('datasets')
       localStorage.removeItem('activeDatasetId')
+      localStorage.removeItem('forecasts')
       return { ...state, user: null, datasets: [], activeDatasetId: null, forecasts: [] }
     default:
       return state
@@ -79,6 +92,7 @@ function reducer(state, action) {
 function persist(state) {
   if (state.user) {
     localStorage.setItem('datasets', JSON.stringify(state.datasets))
+    localStorage.setItem('forecasts', JSON.stringify(state.forecasts))
     if (state.activeDatasetId) {
       localStorage.setItem('activeDatasetId', state.activeDatasetId)
     } else {
@@ -92,7 +106,7 @@ export function DataProvider({ children }) {
 
   useEffect(() => {
     persist(state)
-  }, [state.datasets, state.activeDatasetId, state.user])
+  }, [state.datasets, state.activeDatasetId, state.forecasts, state.user])
 
   return <DataContext.Provider value={{ state, dispatch }}>{children}</DataContext.Provider>
 }

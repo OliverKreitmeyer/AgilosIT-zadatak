@@ -39,14 +39,6 @@ const AppHeaderDropdown = () => {
         <CDropdownItem
           as="button"
           type="button"
-          onClick={() => navigate(isLoggedIn ? '/profile' : '/login')}
-        >
-          <CIcon icon={cilUser} className="me-2" />
-          Profile
-        </CDropdownItem>
-        <CDropdownItem
-          as="button"
-          type="button"
           onClick={() => navigate(isLoggedIn ? '/settings' : '/login')}
         >
           <CIcon icon={cilSettings} className="me-2" />
