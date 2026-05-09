@@ -44,7 +44,17 @@ Aplikacija je dostupna na http://localhost:3000
 
 ## Dokumentacija
 
-- [PROJECT.md](PROJECT.md) — arhitektura, API, struktura projekta
+- **[docs/](docs/README.md) — Project Wiki** (English)
+  - [Architecture](docs/architecture.md) — system design, data flow, state management
+  - [Features](docs/features.md) — complete feature checklist
+  - [Models](docs/models.md) — all 6 forecasting models in detail
+  - [Frontend](docs/frontend.md) — React app, components, context, routing
+  - [Backend](docs/backend.md) — FastAPI server, Prophet integration
+  - [API Reference](docs/api.md) — endpoint specs, request/response formats
+  - [Deployment](docs/deployment.md) — Docker, dev setup, environment variables
+  - [Edge Cases & Validation](docs/edge-cases.md) — error handling, known limits
+  - [File Reference](docs/file-reference.md) — every important file with purpose
+- [PROJECT.md](PROJECT.md) — arhitektura, API, struktura projekta (Croatian)
 - [DEV-RAW.md](DEV-RAW.md) — upute za postavljanje razvojnog okruzenja (Arch Linux + Windows)
 
 ## Korišteni izvori
